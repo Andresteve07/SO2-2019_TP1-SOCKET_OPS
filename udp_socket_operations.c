@@ -18,30 +18,29 @@
 #include "log.h"
 #include <sys/time.h>
 #include <errno.h>
-  
-#define PORT	12121 
+
 #define MAXLINE 1024 
 
 int udp_sockfd;
-struct sockaddr_in udp_my_address, udp_target_address;
+struct sockaddr_in udp_my_address, udp_dest_address;
 
-operation_result udp_init_client(){
+operation_result udp_init_client(char*  server_ip4_address){
 	// Creating socket file descriptor 
 	if ( (udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
 		log_error("socket creation failed"); 
 		exit(EXIT_FAILURE); 
 	} 
 
-	memset(&udp_target_address, 0, sizeof(udp_target_address)); 
+	memset(&udp_dest_address, 0, sizeof(udp_dest_address)); 
 	
 	// Filling server information 
-	udp_target_address.sin_family = AF_INET; 
-	udp_target_address.sin_port = htons(PORT); 
-	udp_target_address.sin_addr.s_addr = inet_addr("127.0.0.1");
+	udp_dest_address.sin_family = AF_INET; 
+	udp_dest_address.sin_port = htons(PORT); 
+	udp_dest_address.sin_addr.s_addr = inet_addr(server_ip4_address);
 	log_debug("UDP socket creation succeed!");
 	return socket_success;
 }
-operation_result udp_init_server(){
+operation_result udp_init_server(char* client_ipv4_address){
 	// Creating socket file descriptor 
     if ( (udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
         perror("socket creation failed"); 
@@ -49,12 +48,17 @@ operation_result udp_init_server(){
     } 
       
     memset(&udp_my_address, 0, sizeof(udp_my_address)); 
-    memset(&udp_target_address, 0, sizeof(udp_target_address)); 
+    memset(&udp_dest_address, 0, sizeof(udp_dest_address)); 
       
     // Filling server information 
     udp_my_address.sin_family    = AF_INET; // IPv4 
     udp_my_address.sin_addr.s_addr = INADDR_ANY; 
-    udp_my_address.sin_port = htons(PORT); 
+    udp_my_address.sin_port = htons(PORT);
+
+	// Filling client information 
+	udp_dest_address.sin_family = AF_INET; 
+	udp_dest_address.sin_port = htons(PORT); 
+	udp_dest_address.sin_addr.s_addr = inet_addr(client_ipv4_address);
       
     // Bind the socket with the server address 
     if ( bind(udp_sockfd, (const struct sockaddr *)&udp_my_address,  
@@ -119,8 +123,8 @@ operation_result udp_send_rpc(rpc* rpc_message){
 	log_trace("TOTAL req: %c%c%c%c%s\n",total_buf[0],total_buf[1],total_buf[2],total_buf[3],&total_buf[4]);
 
 	if(sendto(udp_sockfd, total_buf, strlen(rpc_buf)+4, 
-	MSG_CONFIRM, (const struct sockaddr *) & udp_target_address, 
-	sizeof(udp_target_address)) > 0){
+	MSG_CONFIRM, (const struct sockaddr *) & udp_dest_address, 
+	sizeof(udp_dest_address)) > 0){
 		return socket_success;
 	} else {
 		return socket_failure;
@@ -131,11 +135,11 @@ operation_result udp_recv_rpc(rpc* rpc_message){
 	size_t payload_size;
 	char input_buf[RPC_MSG_BUF_SIZE];//sizeof only works ok for static arrays i.e. results on 500
 	bzero(input_buf, sizeof(input_buf));
-	socklen_t address_size; 
+	socklen_t address_size = sizeof(udp_dest_address); 
 	
 	if(recvfrom(udp_sockfd, input_buf, sizeof(input_buf),
-	MSG_WAITALL, (struct sockaddr *) &udp_target_address, 
-	&address_size) > 0){
+	MSG_WAITALL, (struct sockaddr *) &udp_dest_address, 
+	& address_size) > 0){
 		int size_int = get_payload_size(input_buf);
 		char* recv_data = &input_buf[4];
 		recv_data[size_int]='\0';

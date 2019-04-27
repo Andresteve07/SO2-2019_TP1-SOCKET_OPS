@@ -19,8 +19,7 @@
 #include "log.h"
 #include <sys/time.h>
 #include <errno.h>
- 
-#define PORT 12121 
+
 #define SA struct sockaddr
 
 int tcp_sockfd, connfd, client_address_len;
@@ -104,7 +103,7 @@ operation_result tcp_connect_to_server(char*  server_ip){
 	bzero(&tcp_servaddr, sizeof(tcp_servaddr)); 
 	// assign IP, PORT 
     tcp_servaddr.sin_family = AF_INET; 
-    tcp_servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+    tcp_servaddr.sin_addr.s_addr = inet_addr(server_ip); 
     tcp_servaddr.sin_port = htons(PORT); 
   
     // connect the client socket to server socket 
@@ -295,6 +294,7 @@ operation_result tcp_send_file(char* file_name){
 		if (load_file_buffer(file_ptr, file_buffer, FILE_CHUNK_BUF_SIZE)) {
 			write_bytes = write(connfd, file_buffer, strlen(file_buffer));
 			if( write_bytes > 0){
+				sended_bytes += write_bytes;
 				break;
 			} else {
 				log_error("Failure to write %i bytes on file transfer.",strlen(file_buffer));
@@ -314,12 +314,13 @@ operation_result tcp_send_file(char* file_name){
 			return socket_failure;
 		}
 		sended_bytes += write_bytes;
-		log_trace("FILE_SEND - %lu",sended_bytes);
+		//log_trace("FILE_SEND - %lu",sended_bytes);
 		bzero(file_buffer,FILE_CHUNK_BUF_SIZE);
 	}
 	if (file_ptr != NULL){
 		fclose(file_ptr);
 	}
+	log_trace("Total of %i bytes sended.",sended_bytes);
 	return socket_success;
 }
 
@@ -362,11 +363,12 @@ operation_result tcp_recv_file(FILE* file_ptr){
 }
 
 operation_result tcp_recv_file_known_size(FILE* input_file, long byte_count){
-	log_trace("HOLO FILE");
 	log_trace("RECV FILE WITH SIZE: %lu", byte_count);
 	char input_buffer[FILE_CHUNK_BUF_SIZE];
-	long read_bytes = 0;
+	long read_bytes = 0L;
 	int current_read = 0;
+	long saved_bytes =0L; 
+	int current_save = 0;
 	while(read_bytes < byte_count){
 		bzero(input_buffer,FILE_CHUNK_BUF_SIZE);
 		current_read = read(connfd, input_buffer, FILE_CHUNK_BUF_SIZE);
@@ -376,14 +378,20 @@ operation_result tcp_recv_file_known_size(FILE* input_file, long byte_count){
 			return socket_failure;
 		}
 		read_bytes += current_read;
-		if(fwrite(input_buffer,1,sizeof(input_buffer),input_file) <= 0){
+		//log_debug("%i bytes READ.",read_bytes);
+		current_save = fwrite(input_buffer,1,sizeof(input_buffer),input_file);
+		if( current_save <= 0){
 			log_error("Failure to write %i bytes into input file.",sizeof(input_buffer));
 			fclose(input_file);
 			return socket_failure;
 		}
+		saved_bytes += current_save;
+		//log_debug("%i bytes SAVED ON FILE.",saved_bytes);
 		current_read = 0;
+		current_save = 0;
 	}
 	fclose(input_file);
+	log_debug("Total of %i bytes READ.\n Total of %i bytes SAVED TO FILE.",read_bytes,saved_bytes);
 	log_debug("Successful file transfer.");
 	return socket_success;
 }

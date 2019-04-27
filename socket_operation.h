@@ -20,6 +20,8 @@
 #define RPC_MSG_BUF_SIZE 504
 #define FILE_CHUNK_BUF_SIZE 32
 
+#define PORT 12121
+
 typedef enum{
 	socket_success,
 	socket_failure,
@@ -34,6 +36,8 @@ typedef struct rpc
 	char* payload;//results
 	char* error;
 } rpc;
+
+char target_ipv4_address[15];
 
 operation_result tcp_init_client();
 operation_result tcp_init_server();
@@ -56,8 +60,8 @@ void set_payload_size(int payload_size,char* whole_buffer);
 
 operation_result udp_connect();
 
-operation_result udp_init_client();
-operation_result udp_init_server();
+operation_result udp_init_client(char*  server_ip4_address);
+operation_result udp_init_server(char*  client_ip4_address);
 operation_result udp_timeouts(int seconds);
 operation_result udp_connect_to_server(char*  server_ip);
 operation_result udp_send_data();
