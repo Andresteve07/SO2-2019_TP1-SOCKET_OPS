@@ -379,7 +379,7 @@ operation_result tcp_recv_file_known_size(FILE* input_file, long byte_count){
 		}
 		read_bytes += current_read;
 		//log_debug("%i bytes READ.",read_bytes);
-		current_save = fwrite(input_buffer,1,sizeof(input_buffer),input_file);
+		current_save = fwrite(input_buffer,1,current_read,input_file);
 		if( current_save <= 0){
 			log_error("Failure to write %i bytes into input file.",sizeof(input_buffer));
 			fclose(input_file);
