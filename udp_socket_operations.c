@@ -38,7 +38,7 @@ operation_result udp_init_client(char*  server_ip4_address){
 	udp_dest_address.sin_port = htons(PORT); 
 	udp_dest_address.sin_addr.s_addr = inet_addr(server_ip4_address);
 	log_debug("UDP socket creation succeed!");
-	return socket_success;
+	return udp_timeouts(4);
 }
 operation_result udp_init_server(char* client_ipv4_address){
 	// Creating socket file descriptor 

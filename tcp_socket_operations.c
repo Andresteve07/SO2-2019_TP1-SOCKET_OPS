@@ -348,6 +348,7 @@ operation_result tcp_recv_file(FILE* file_ptr){
 			fclose(file_ptr);
 			return socket_failure;
 		}
+		//TODO replace sizeof for actual read byte count.
 		if(fwrite(input_buffer,1,sizeof(input_buffer),file_ptr) <= 0){
 			log_error("Failure to write %i bytes into input file.",sizeof(input_buffer));
 			fclose(file_ptr);
