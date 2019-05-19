@@ -18,7 +18,7 @@
 #define RPC_JSON_FMT "{command_id:%d,satellite_id:%d,station_id:%d,payload:%Q,error:%Q}"
 
 #define RPC_MSG_BUF_SIZE 504
-#define FILE_CHUNK_BUF_SIZE 32
+#define FILE_CHUNK_BUF_SIZE 1200
 
 #define PORT 12121
 

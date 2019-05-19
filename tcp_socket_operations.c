@@ -256,7 +256,7 @@ operation_result tcp_recv_rpc(rpc* rpc_message){
 }
 #define nofile "File Not Found!"
 // funtion sending file
-int load_file_buffer(FILE* fp, char* buf, int s) 
+int old_load_file_buffer(FILE* fp, char* buf, int s) 
 { 
     int i, len; 
     if (fp == NULL) { 
@@ -269,7 +269,7 @@ int load_file_buffer(FILE* fp, char* buf, int s)
     unsigned char ch; 
     for (i = 0; i < s; i++) {
 		if (feof(fp)) 
-            return 1;
+            return i;
         ch = fgetc(fp);//TODO replace with 'fread'
 		//fread(&ch,1,1,fp);
 		/*
@@ -279,48 +279,46 @@ int load_file_buffer(FILE* fp, char* buf, int s)
 		*/
         buf[i] = ch;        
     } 
-    return 0;
+    return i;
 }
 
+int load_file_buffer(FILE* fp, char* buf, int s) {
+	if (fp == NULL){
+		return -1;
+	}
+	return fread(buf,1,FILE_CHUNK_BUF_SIZE,fp);
+}
 operation_result tcp_send_file(char* file_name){
 	FILE *file_ptr;
 	file_ptr=fopen(file_name,"rb");
 	char file_buffer[FILE_CHUNK_BUF_SIZE]; 
 	long sended_bytes = 0;
 	int write_bytes;
-	while (1) {
-		// process 
+	int read_bytes;
+	do{
 		write_bytes = 0;
-		if (load_file_buffer(file_ptr, file_buffer, FILE_CHUNK_BUF_SIZE)) {
-			write_bytes = write(connfd, file_buffer, strlen(file_buffer));
-			if( write_bytes > 0){
-				sended_bytes += write_bytes;
-				break;
-			} else {
-				log_error("Failure to write %i bytes on file transfer.",strlen(file_buffer));
+		read_bytes = load_file_buffer(file_ptr, file_buffer, FILE_CHUNK_BUF_SIZE);
+		if(read_bytes == -1) {
+			log_error("Failure to read content from file.");
+			return socket_failure;
+		}
+		if(read_bytes>0){
+			write_bytes = write(connfd, file_buffer, read_bytes);
+			if( write_bytes <= 0){
+				log_error("Failure to write %i bytes on file transfer.\nCause: %s",read_bytes, strerror(errno));
 				if (file_ptr != NULL){
 					fclose(file_ptr);
 				}
 				return socket_failure;
 			}
+			sended_bytes += write_bytes;
 		}
-		// send
-		write_bytes = write(connfd, file_buffer, FILE_CHUNK_BUF_SIZE);
-		if( write_bytes <= 0){
-			log_error("Failure to write %i bytes on file transfer.",strlen(file_buffer));
-			if (file_ptr != NULL){
-				fclose(file_ptr);
-			}
-			return socket_failure;
-		}
-		sended_bytes += write_bytes;
-		//log_trace("FILE_SEND - %lu",sended_bytes);
 		bzero(file_buffer,FILE_CHUNK_BUF_SIZE);
-	}
+	} while (read_bytes > 0);
 	if (file_ptr != NULL){
 		fclose(file_ptr);
 	}
-	log_trace("Total of %i bytes sended.",sended_bytes);
+	log_trace("Total of %i bytes sent.",sended_bytes);
 	return socket_success;
 }
 
